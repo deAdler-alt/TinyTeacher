@@ -3,7 +3,8 @@ import { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType } fro
 import { motion } from 'framer-motion'
 import {
   BookOpen, Sparkles, Save, Download, Eraser, Trash2,
-  Volume2, Pause, PlayCircle, Square as Stop, Settings2, Type, Link2, Loader2
+  Volume2, Pause, PlayCircle, Square as Stop, Settings2, Type, Link2, Loader2,
+  Moon, Sun
 } from 'lucide-react'
 
 const CORS_PROXY = "https://tinyteacher-cors.lotopo5924.workers.dev/?u="
@@ -52,11 +53,7 @@ function simplifyBase(text, targetLen, maxSentences=6){
     return t.trim()
   }).join(' ')
 }
-
-function simplifyForLevel(summaryText, level){
-  if(level==='A2') return simplifyBase(summaryText, 12, 4)
-  return simplifyBase(summaryText, 20, 6)
-}
+function simplifyForLevel(summaryText, level){ return level==='A2' ? simplifyBase(summaryText,12,4) : simplifyBase(summaryText,20,6) }
 
 function pickContextSentence(sents,term){
   const lower=term.toLowerCase()
@@ -137,6 +134,16 @@ function speakText(text, lang = 'pl', opts = {}, onEvent){
 }
 
 export default function App(){
+  const [dark, setDark] = useState(() => {
+    const saved = localStorage.getItem('tt-theme')
+    if (saved) return saved === 'dark'
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+  })
+  useEffect(() => {
+    localStorage.setItem('tt-theme', dark ? 'dark' : 'light')
+    document.documentElement.classList.toggle('dark', dark)
+  }, [dark])
+
   const [url,setUrl]=useState('')
   const [pasted,setPasted]=useState('')
   const [loading,setLoading]=useState(false)
@@ -241,17 +248,35 @@ export default function App(){
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove()
   }
 
-  const glossyCard = "border border-white/40 bg-white/60 backdrop-blur-xl shadow-[0_10px_40px_-10px_rgba(16,24,40,0.15)] rounded-2xl"
+  const pageBg = dark ? 'bg-[#0b1020]' : 'bg-white'
+  const textCol = dark ? 'text-gray-100' : 'text-gray-900'
+  const glossyCard = dark
+    ? "border border-white/10 bg-white/10 backdrop-blur-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] rounded-2xl"
+    : "border border-white/40 bg-white/60 backdrop-blur-xl shadow-[0_10px_40px_-10px_rgba(16,24,40,0.15)] rounded-2xl"
+  const headerBg = dark ? 'bg-[#0b1020]/70' : 'bg-white/60'
+  const chipBg = dark ? 'bg-white/10 border-white/10' : 'bg-black/5 border-black/10'
+  const inputBg = dark ? 'bg-white/5 border-white/10 text-gray-100 placeholder:text-gray-400' : 'bg-white border-black/10'
+  const btnGhost = dark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white border-black/10 hover:bg-black/5'
 
   return (
-    <div className={`min-h-screen ${dyslexia ? 'dyslexia' : ''} text-gray-900`}>
+    <div className={`min-h-screen ${dyslexia ? 'dyslexia' : ''} ${pageBg} ${textCol}`}>
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-gradient-to-br from-blue-500/30 via-indigo-400/20 to-fuchsia-400/20 blur-3xl" />
-        <div className="absolute -bottom-32 -right-32 h-[28rem] w-[28rem] rounded-full bg-gradient-to-tr from-emerald-400/20 via-cyan-300/20 to-blue-400/20 blur-3xl" />
-        <div className="absolute inset-0 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:18px_18px] opacity-[0.15]" />
+        {dark ? (
+          <>
+            <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.25),transparent_60%)] blur-2xl" />
+            <div className="absolute -bottom-32 -right-32 h-[28rem] w-[28rem] rounded-full bg-[radial-gradient(circle_at_bottom_right,rgba(124,58,237,0.25),transparent_60%)] blur-2xl" />
+            <div className="absolute inset-0 bg-[radial-gradient(#ffffff22_1px,transparent_1px)] [background-size:18px_18px] opacity-[0.15]" />
+          </>
+        ) : (
+          <>
+            <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-gradient-to-br from-blue-500/30 via-indigo-400/20 to-fuchsia-400/20 blur-3xl" />
+            <div className="absolute -bottom-32 -right-32 h-[28rem] w-[28rem] rounded-full bg-gradient-to-tr from-emerald-400/20 via-cyan-300/20 to-blue-400/20 blur-3xl" />
+            <div className="absolute inset-0 bg-[radial-gradient(#00000012_1px,transparent_1px)] [background-size:18px_18px] opacity-[0.15]" />
+          </>
+        )}
       </div>
 
-      <header className="sticky top-0 z-10 backdrop-blur-md bg-white/60 border-b border-white/40">
+      <header className={`sticky top-0 z-10 backdrop-blur-md border-b ${headerBg} ${dark ? 'border-white/10' : 'border-white/40'}`}>
         <div className="max-w-5xl mx-auto px-5 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg">
@@ -262,33 +287,33 @@ export default function App(){
               <div className="text-xs opacity-70 -mt-0.5">Turn any content into a 10-minute lesson</div>
             </div>
           </div>
-          <div className="hidden sm:flex items-center gap-2 text-xs">
-            <Settings2 className="h-4 w-4 opacity-70" />
-            <span className="opacity-70">PWA • Offline • DOCX</span>
+          <div className="flex items-center gap-2 text-xs">
+            <div className="hidden sm:flex items-center gap-2 opacity-80">
+              <Settings2 className="h-4 w-4" />
+              <span>PWA • Offline • DOCX</span>
+            </div>
+            <button
+              onClick={()=>setDark(v=>!v)}
+              className={`ml-3 px-3 h-9 rounded-xl ${btnGhost} flex items-center gap-2`}
+              aria-label="Toggle dark mode"
+              title="Toggle dark mode"
+            >
+              {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              <span className="hidden sm:inline">{dark ? 'Light' : 'Dark'}</span>
+            </button>
           </div>
         </div>
       </header>
 
       <main className="max-w-5xl mx-auto px-5 py-8">
-        <motion.section
-          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}
-          className={`${glossyCard} p-5 mb-6`}
-        >
+        <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className={`${glossyCard} p-5 mb-6`}>
           <div className="flex flex-wrap items-center gap-3" role="group" aria-label="Accessibility and level controls">
             <div className="flex items-center gap-2">
               <Type className="h-5 w-5 opacity-70" />
               <span className="text-sm">Reading level</span>
-              <div className="inline-flex rounded-xl overflow-hidden border border-black/10">
-                <button
-                  role="tab" aria-selected={readingLevel==='A2'}
-                  onClick={()=>setReadingLevel('A2')}
-                  className={`px-3 h-10 ${readingLevel==='A2'?'bg-blue-600 text-white':'bg-white hover:bg-black/5'}`}
-                >A2</button>
-                <button
-                  role="tab" aria-selected={readingLevel==='B2'}
-                  onClick={()=>setReadingLevel('B2')}
-                  className={`px-3 h-10 ${readingLevel==='B2'?'bg-blue-600 text-white':'bg-white hover:bg-black/5'}`}
-                >B2</button>
+              <div className={`inline-flex rounded-xl overflow-hidden border ${dark?'border-white/10':'border-black/10'}`}>
+                <button role="tab" aria-selected={readingLevel==='A2'} onClick={()=>setReadingLevel('A2')} className={`px-3 h-10 ${readingLevel==='A2'?'bg-blue-600 text-white':btnGhost}`}>A2</button>
+                <button role="tab" aria-selected={readingLevel==='B2'} onClick={()=>setReadingLevel('B2')} className={`px-3 h-10 ${readingLevel==='B2'?'bg-blue-600 text-white':btnGhost}`}>B2</button>
               </div>
             </div>
 
@@ -300,20 +325,14 @@ export default function App(){
                     const c = speakText((simple || summary), 'pl', { rate: 1 }, ev => { if (ev.type==='end') setSpeaking(false) })
                     setTtsCtrl(c); setSpeaking(true)
                   }}
-                  className="px-3 h-10 rounded-xl bg-white hover:bg-black/5 border border-black/10 flex items-center gap-1"
+                  className={`px-3 h-10 rounded-xl ${btnGhost} flex items-center gap-1`}
                   aria-pressed={speaking}
                 >
                   <PlayCircle className="h-5 w-5" /> {speaking ? 'Restart' : 'Play'}
                 </button>
-                <button onClick={()=>ttsCtrl?.pause?.()} className="px-3 h-10 rounded-xl bg-white hover:bg-black/5 border border-black/10 flex items-center gap-1">
-                  <Pause className="h-5 w-5" /> Pause
-                </button>
-                <button onClick={()=>ttsCtrl?.resume?.()} className="px-3 h-10 rounded-xl bg-white hover:bg-black/5 border border-black/10 flex items-center gap-1">
-                  <PlayCircle className="h-5 w-5" /> Resume
-                </button>
-                <button onClick={()=>{ ttsCtrl?.cancel?.(); setSpeaking(false) }} className="px-3 h-10 rounded-xl bg-white hover:bg-black/5 border border-black/10 flex items-center gap-1">
-                  <Stop className="h-5 w-5" /> Stop
-                </button>
+                <button onClick={()=>ttsCtrl?.pause?.()} className={`px-3 h-10 rounded-xl ${btnGhost} flex items-center gap-1`}><Pause className="h-5 w-5" /> Pause</button>
+                <button onClick={()=>ttsCtrl?.resume?.()} className={`px-3 h-10 rounded-xl ${btnGhost} flex items-center gap-1`}><PlayCircle className="h-5 w-5" /> Resume</button>
+                <button onClick={()=>{ ttsCtrl?.cancel?.(); setSpeaking(false) }} className={`px-3 h-10 rounded-xl ${btnGhost} flex items-center gap-1`}><Stop className="h-5 w-5" /> Stop</button>
               </div>
             )}
 
@@ -324,50 +343,36 @@ export default function App(){
           </div>
         </motion.section>
 
-        <motion.section
-          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.05 }}
-          className={`${glossyCard} p-5 mb-6`}
-        >
+        <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.05 }} className={`${glossyCard} p-5 mb-6`}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <label className="block text-sm font-medium opacity-80">Source URL</label>
             <div className="hidden md:block text-right opacity-60 text-xs">Paste a public link (CORS-friendly)</div>
             <div className="md:col-span-2 flex items-center gap-2">
               <div className="relative flex-1">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 opacity-60"><Link2 className="h-4 w-4" /></span>
-                <input
-                  value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://example.com/article"
-                  className="w-full pl-9 pr-3 h-11 rounded-xl bg-white border border-black/10 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
+                <input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://example.com/article" className={`w-full pl-9 pr-3 h-11 rounded-xl ${inputBg} focus:outline-none focus:ring-2 focus:ring-blue-600`} />
               </div>
             </div>
 
             <label className="block text-sm font-medium opacity-80 md:col-span-2">Or paste article/transcript text</label>
-            <textarea
-              value={pasted} onChange={e=>setPasted(e.target.value)} rows={7}
-              placeholder="Paste text here…"
-              className="md:col-span-2 w-full rounded-xl p-3 bg-white border border-black/10 focus:outline-none focus:ring-2 focus:ring-blue-600 resize-y"
-            />
+            <textarea value={pasted} onChange={e=>setPasted(e.target.value)} rows={7} placeholder="Paste text here…" className={`md:col-span-2 w-full rounded-xl p-3 ${inputBg} focus:outline-none focus:ring-2 focus:ring-blue-600 resize-y`} />
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <button
-              onClick={createLesson} disabled={loading}
-              className="px-4 h-11 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg disabled:opacity-60 flex items-center gap-2"
-              aria-busy={loading}
-            >
+            <button onClick={createLesson} disabled={loading} className="px-4 h-11 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg disabled:opacity-60 flex items-center gap-2" aria-busy={loading}>
               {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
               {loading ? 'Creating…' : 'Create Lesson'}
             </button>
-            <button onClick={()=>{ if(summary){ saveLesson() } else { setError('Create a lesson first.') }}} className="px-4 h-11 rounded-xl bg-white border border-black/10 hover:bg-black/5 flex items-center gap-2">
+            <button onClick={()=>{ if(summary){ saveLesson() } else { setError('Create a lesson first.') }}} className={`px-4 h-11 rounded-xl ${btnGhost} flex items-center gap-2`}>
               <Save className="h-5 w-5" /> Save
             </button>
             <button onClick={exportDocx} className="px-4 h-11 rounded-xl bg-emerald-600 text-white hover:brightness-110 shadow flex items-center gap-2">
               <Download className="h-5 w-5" /> Download .docx
             </button>
-            <button onClick={()=>{ setUrl(''); setPasted('') }} className="px-4 h-11 rounded-xl bg-white border border-black/10 hover:bg-black/5 flex items-center gap-2">
+            <button onClick={()=>{ setUrl(''); setPasted('') }} className={`px-4 h-11 rounded-xl ${btnGhost} flex items-center gap-2`}>
               <Eraser className="h-5 w-5" /> Clear inputs
             </button>
-            <div aria-live="polite" className="text-red-600 text-sm">{error}</div>
+            <div aria-live="polite" className="text-red-400 text-sm">{error}</div>
           </div>
         </motion.section>
 
@@ -375,7 +380,7 @@ export default function App(){
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <motion.section initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{duration:0.35,delay:0.1}} className={`${glossyCard} p-5`}>
               <div className="flex items-center gap-2 mb-2">
-                <BookOpen className="h-5 w-5 text-blue-700" />
+                <BookOpen className="h-5 w-5 text-blue-400" />
                 <h2 className="text-lg font-semibold">Summary</h2>
               </div>
               <p className="leading-7">{summary}</p>
@@ -384,10 +389,10 @@ export default function App(){
             <motion.section initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{duration:0.35,delay:0.12}} className={`${glossyCard} p-5`}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <Type className="h-5 w-5 text-emerald-700" />
+                  <Type className="h-5 w-5 text-emerald-400" />
                   <h2 className="text-lg font-semibold">Simplified</h2>
                 </div>
-                <span className="text-xs px-2 py-1 rounded-full bg-black/5 border border-black/10">Level: {readingLevel}</span>
+                <span className={`text-xs px-2 py-1 rounded-full ${chipBg}`}>Level: {readingLevel}</span>
               </div>
               <p className="leading-7">{simple}</p>
             </motion.section>
@@ -396,7 +401,7 @@ export default function App(){
               <h2 className="text-lg font-semibold mb-3">Flashcards</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {cards.map((c,i)=>(
-                  <div key={i} className="rounded-xl p-3 border border-black/10 bg-white/70">
+                  <div key={i} className={`rounded-xl p-3 ${btnGhost}`}>
                     <div className="font-medium">{c.term}</div>
                     <div className="text-sm opacity-80">{c.definition}</div>
                   </div>
@@ -418,13 +423,13 @@ export default function App(){
                           const isPicked=picked===o
                           const isCorrect=o===q.answer
                           const base="text-left rounded-xl p-2 border"
-                          const cls=isPicked ? (isCorrect?'bg-emerald-600 text-white border-emerald-600':'bg-red-600 text-white border-red-600') : 'bg-white/70 border-black/10 hover:bg-black/5'
+                          const cls=isPicked ? (isCorrect?'bg-emerald-600 text-white border-emerald-600':'bg-red-600 text-white border-red-600') : (dark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/70 border-black/10 hover:bg-black/5')
                           return (
                             <button key={j} onClick={()=>choose(i,o)} className={`${base} ${cls}`}>{o}</button>
                           )
                         })}
                       </div>
-                      {picked && (<div className={`mt-2 text-sm ${picked===q.answer?'text-emerald-700':'text-red-700'}`}>{picked===q.answer?'Correct':`Answer: ${q.answer}`}</div>)}
+                      {picked && (<div className={`mt-2 text-sm ${picked===q.answer?'text-emerald-400':'text-red-400'}`}>{picked===q.answer?'Correct':`Answer: ${q.answer}`}</div>)}
                     </li>
                   )
                 })}
@@ -437,17 +442,17 @@ export default function App(){
         <motion.section initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{duration:0.35,delay:0.18}} className={`${glossyCard} p-5 mt-6`}>
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">My lessons</h2>
-            <button onClick={()=>{ store.clear(); setLessons([]) }} className="px-3 h-10 rounded-xl bg-white border border-black/10 hover:bg-black/5 flex items-center gap-2">
+            <button onClick={()=>{ store.clear(); setLessons([]) }} className={`px-3 h-10 rounded-xl ${btnGhost} flex items-center gap-2`}>
               <Trash2 className="h-5 w-5" /> Clear saved
             </button>
           </div>
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {lessons.map(l=>(
-              <div key={l.id} className="rounded-xl p-3 border border-black/10 bg-white/70">
+              <div key={l.id} className={`rounded-xl p-3 ${btnGhost}`}>
                 <div className="font-medium line-clamp-2">{l.title}</div>
                 <div className="text-xs opacity-70 mt-1">{new Date(l.createdAt).toLocaleString()}</div>
                 <div className="mt-2 flex gap-2">
-                  <button onClick={()=>loadLesson(l.id)} className="px-3 h-9 rounded-lg bg-white border border-black/10 hover:bg-black/5">Load</button>
+                  <button onClick={()=>loadLesson(l.id)} className={`px-3 h-9 rounded-lg ${btnGhost}`}>Load</button>
                   <button onClick={()=>deleteLesson(l.id)} className="px-3 h-9 rounded-lg bg-red-600 text-white">Delete</button>
                 </div>
               </div>
