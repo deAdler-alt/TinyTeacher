@@ -78,7 +78,7 @@ function makeQuiz(text, keywords, n = 5) {
   return qs
 }
 
-CORS_PROXY = "https://tinyteacher-cors.lotopo5924.workers.dev/?u="
+const CORS_PROXY = "https://tinyteacher-cors.lotopo5924.workers.dev/?u="
 
 async function fetchHtml(url) {
   try {
@@ -93,6 +93,7 @@ async function fetchHtml(url) {
   } catch {}
   return null
 }
+
 
 function extractTextFromHtml(html) {
   const doc = new DOMParser().parseFromString(html, 'text/html')
