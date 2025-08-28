@@ -1,17 +1,17 @@
 import { useState } from 'react'
 
 function splitSentences(text) {
-  return text
-    .replace(/\s+/g, ' ')
-    .match(/[^.!?]+[.!?]/g) || [text]
+  const norm = (text || '').replace(/\s+/g, ' ').trim()
+  const parts = norm.match(/[^.!?]+[.!?]?/g) || []
+  return parts.map(s => s.trim()).filter(Boolean)
 }
 
 function tokenize(text) {
-  return text.toLowerCase().match(/[a-ząćęłńóśźż0-9]+/gi) || []
+  return (text || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').match(/[a-ząćęłńóśźż0-9]+/gi) || []
 }
 
 const STOP = new Set([
-  'i','oraz','lub','albo','a','w','na','do','z','że','to','jak','o','od','po','u','przy','dla','ten','ta','to','the','and','or','of','in','on','to','for','with','is','are','was','were','be','by','as','at','it','this','that','an','a'
+  'i','oraz','lub','albo','a','w','na','do','z','że','to','jak','o','od','po','u','przy','dla','ten','ta','to','te','tam','tu','jest','są','był','była','było','być','nie','tak','czy','się','nad','pod','między','oraz','który','która','które','the','and','or','of','in','on','to','for','with','is','are','was','were','be','by','as','at','it','this','that','an','a','from','into','over','under','between','which','who','whom','whose'
 ])
 
 function wordFreq(words) {
@@ -20,60 +20,122 @@ function wordFreq(words) {
   return f
 }
 
-function summarize(text, maxSentences = 5) {
-  const sentences = splitSentences(text)
-  const words = tokenize(text)
-  const freq = wordFreq(words)
-  const scored = sentences.map((s, i) => {
-    const sw = tokenize(s)
-    const score = sw.reduce((acc, w) => acc + (freq[w] || 0), 0) / Math.max(sw.length, 1)
-    return { i, s: s.trim(), score }
-  })
-  scored.sort((a, b) => b.score - a.score)
-  const top = scored.slice(0, maxSentences).sort((a, b) => a.i - b.i).map(x => x.s)
-  return top.join(' ')
+function rakeKeywords(text, topK = 8) {
+  const sents = splitSentences(text)
+  const candidates = []
+  const sep = /[^\p{L}\p{N}\+]+/u
+  for (const s of sents) {
+    const words = s.toLowerCase().split(sep).filter(Boolean)
+    const phrases = []
+    let current = []
+    for (const w of words) {
+      if (STOP.has(w) || w.length < 3) {
+        if (current.length) { phrases.push(current); current = [] }
+      } else current.push(w)
+    }
+    if (current.length) phrases.push(current)
+    for (const p of phrases) candidates.push(p)
+  }
+  const freq = {}
+  const degree = {}
+  for (const p of candidates) {
+    const deg = p.length - 1
+    for (const w of p) {
+      freq[w] = (freq[w] || 0) + 1
+      degree[w] = (degree[w] || 0) + deg
+    }
+  }
+  const scoreWord = {}
+  for (const w in freq) scoreWord[w] = (degree[w] + freq[w]) / freq[w]
+  const scorePhrase = candidates.map(p => [p.join(' '), p.reduce((a, w) => a + (scoreWord[w] || 0), 0)])
+  scorePhrase.sort((a,b)=>b[1]-a[1])
+  const uniq = []
+  const seen = new Set()
+  for (const [ph] of scorePhrase) {
+    if (!seen.has(ph)) { uniq.push(ph); seen.add(ph) }
+    if (uniq.length >= Math.max(5, topK)) break
+  }
+  return uniq
 }
 
-function simplify(text, targetLen = 18) {
+function jaccard(a, b) {
+  const A = new Set(tokenize(a))
+  const B = new Set(tokenize(b))
+  const inter = [...A].filter(x=>B.has(x)).length
+  const uni = new Set([...A, ...B]).size || 1
+  return inter / uni
+}
+
+function summarize(text, maxSentences = 5) {
   const sentences = splitSentences(text)
-  const simple = sentences.map(s => {
-    let t = s.replace(/\([^)]*\)/g, ' ')
+  if (sentences.length <= maxSentences) return sentences.join(' ')
+  const words = tokenize(text)
+  const freq = wordFreq(words)
+  const keywords = new Set(rakeKeywords(text, 10))
+  const scored = sentences.map((s, i) => {
+    const sw = tokenize(s)
+    const base = sw.reduce((acc, w) => acc + (freq[w] || 0), 0) / Math.max(sw.length, 1)
+    const kw = [...keywords].reduce((acc, k) => acc + (s.toLowerCase().includes(k) ? 1 : 0), 0)
+    const pos = 1 - i / sentences.length
+    const lenPenalty = Math.abs(18 - sw.length) / 18
+    const score = 0.55*base + 0.3*kw + 0.15*pos - 0.1*lenPenalty
+    return { i, s: s.trim(), score }
+  }).sort((a,b)=>b.score-a.score)
+  const selected = []
+  for (const cand of scored) {
+    if (selected.length >= maxSentences) break
+    if (selected.every(x => jaccard(x.s, cand.s) < 0.6)) selected.push(cand)
+  }
+  selected.sort((a,b)=>a.i-b.i)
+  return selected.map(x=>x.s).join(' ')
+}
+
+function simplify(text, targetLen = 16) {
+  const sentences = splitSentences(text).slice(0, 6)
+  const mapSimple = new Map([
+    ['utilize','use'],['approximately','about'],['numerous','many'],['prior to','before'],
+    ['zastosować','użyć'],['aproksymacja','przybliżenie'],['poprzez','przez'],['w celu','aby']
+  ])
+  const res = sentences.map(s => {
+    let t = s.replace(/\([^)]*\)/g, ' ').replace(/[–—]/g,'-')
+    for (const [k,v] of mapSimple.entries()) t = t.replace(new RegExp(`\\b${k}\\b`,'gi'), v)
     const words = t.trim().split(/\s+/)
     if (words.length > targetLen) t = words.slice(0, targetLen).join(' ') + '…'
     return t.trim()
   })
-  return simple.join(' ')
-}
-
-function topKeywords(text, k = 6) {
-  const freq = wordFreq(tokenize(text))
-  const arr = Object.entries(freq).sort((a, b) => b[1] - a[1]).map(([w]) => w)
-  return arr.slice(0, k)
+  return res.join(' ')
 }
 
 function makeFlashcards(text, keywords) {
   const sentences = splitSentences(text)
-  return keywords.map(term => {
+  const uniq = []
+  const seen = new Set()
+  for (const term of keywords) {
+    if (uniq.length >= 6) break
+    if (seen.has(term)) continue
     const s = sentences.find(x => x.toLowerCase().includes(term.toLowerCase())) || ''
-    const def = s.replace(/\s+/g, ' ').trim()
-    return { term, definition: def || 'Definition from context not found.' }
-  })
+    uniq.push({ term, definition: (s || 'Definition from context not found.').replace(/\s+/g,' ').trim() })
+    seen.add(term)
+  }
+  return uniq
 }
 
 function makeQuiz(text, keywords, n = 5) {
   const sentences = splitSentences(text)
   const qs = []
   const used = new Set()
-  for (const term of keywords) {
+  const pool = keywords.slice(0, 12)
+  for (const term of pool) {
     if (qs.length >= n) break
+    if (used.has(term)) continue
     const s = sentences.find(x => x.toLowerCase().includes(term.toLowerCase()))
     if (!s) continue
-    if (used.has(term)) continue
+    const blanked = s.replace(new RegExp(`\\b${term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\b`, 'i'), '_____').trim()
+    let distractors = pool.filter(k => k !== term).filter(k => !s.toLowerCase().includes(k.toLowerCase()))
+    while (distractors.length < 3) distractors = distractors.concat(pool.filter(k=>k!==term))
+    const options = [term, ...distractors.slice(0,3)].sort(()=>Math.random()-0.5)
+    qs.push({ question: blanked, options, answer: term })
     used.add(term)
-    const blanked = s.replace(new RegExp(`\\b${term}\\b`, 'i'), '_____')
-    const distractors = keywords.filter(k => k !== term).slice(0, 3)
-    const options = [term, ...distractors].slice(0, 4).sort(() => Math.random() - 0.5)
-    qs.push({ question: blanked.trim(), options, answer: term })
   }
   return qs
 }
@@ -130,9 +192,9 @@ export default function App() {
     setSourceText(text)
     const sum = summarize(text, 5)
     const simp = simplify(sum, 18)
-    const keywords = topKeywords(text, 6)
-    const fc = makeFlashcards(text, keywords)
-    const qz = makeQuiz(text, keywords, 5)
+    const kws = rakeKeywords(text, 8)
+    const fc = makeFlashcards(text, kws)
+    const qz = makeQuiz(text, kws, 5)
     setSummary(sum)
     setSimple(simp)
     setCards(fc)
