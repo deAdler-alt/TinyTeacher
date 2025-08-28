@@ -31,21 +31,17 @@ function summarize(text,maxSentences=5){
   return chosen.map(x=>x.s).join(' ')
 }
 
-// map stopni uproszczeń: A2 = krótsze zdania, B2 = dłuższe
 const SIMPLE_MAP = new Map([
   ['utilize','use'],['approximately','about'],['numerous','many'],['prior to','before'],
   ['zastosować','użyć'],['aproksymacja','przybliżenie'],['poprzez','przez'],['w celu','aby'],
   ['implementacja','wdrożenie'],['konfiguracja','ustawienie'],['komponent','część']
 ])
 
-function simplifyBase(text, targetLen, maxSentences=6, aggressive=false){
+function simplifyBase(text, targetLen, maxSentences=6){
   const sents = splitSentences(text).slice(0, maxSentences)
   return sents.map(s=>{
     let t=s.replace(/\([^)]*\)/g,' ').replace(/[–—]/g,'-')
-    for(const [k,v] of SIMPLE_MAP.entries()){
-      const repl = aggressive ? v : v // w razie potrzeby można dodać słabszy słownik dla B2
-      t=t.replace(new RegExp(`\\b${k}\\b`,'gi'),repl)
-    }
+    for(const [k,v] of SIMPLE_MAP.entries()) t=t.replace(new RegExp(`\\b${k}\\b`,'gi'),v)
     const w=t.trim().split(/\s+/)
     if(w.length>targetLen) t=w.slice(0,targetLen).join(' ')+'…'
     return t.trim()
@@ -53,9 +49,8 @@ function simplifyBase(text, targetLen, maxSentences=6, aggressive=false){
 }
 
 function simplifyForLevel(summaryText, level){
-  if(level==='A2') return simplifyBase(summaryText, 12, 4, true)
-  // B2: więcej zdań i dłuższe
-  return simplifyBase(summaryText, 20, 6, false)
+  if(level==='A2') return simplifyBase(summaryText, 12, 4)
+  return simplifyBase(summaryText, 20, 6)
 }
 
 function pickContextSentence(sents,term){
@@ -122,6 +117,24 @@ function useLessonsStore(){
   return { read, add, remove, clear }
 }
 
+function isTtsSupported(){ return typeof window !== 'undefined' && 'speechSynthesis' in window }
+function speakText(text, lang = 'pl', opts = {}, onEvent){
+  const synth = window.speechSynthesis
+  const u = new SpeechSynthesisUtterance(text)
+  u.lang = lang
+  u.rate = opts.rate ?? 1
+  u.pitch = opts.pitch ?? 1
+  u.onstart = (e)=>onEvent?.({type:'start', e})
+  u.onend   = (e)=>onEvent?.({type:'end',   e})
+  synth.cancel()
+  synth.speak(u)
+  return {
+    pause: ()=>synth.pause(),
+    resume: ()=>synth.resume(),
+    cancel: ()=>synth.cancel()
+  }
+}
+
 export default function App(){
   const [url,setUrl]=useState('')
   const [pasted,setPasted]=useState('')
@@ -129,7 +142,7 @@ export default function App(){
   const [error,setError]=useState('')
 
   const [summary,setSummary]=useState('')
-  const [readingLevel,setReadingLevel]=useState('B2') // 'A2' | 'B2'
+  const [readingLevel,setReadingLevel]=useState('B2')
   const [simple,setSimple]=useState('')
   const [cards,setCards]=useState([])
   const [quiz,setQuiz]=useState([])
@@ -137,20 +150,31 @@ export default function App(){
   const [lessons,setLessons]=useState([])
   const [dyslexia,setDyslexia]=useState(false)
 
+  const [ttsCtrl, setTtsCtrl] = useState(null)
+  const [speaking, setSpeaking] = useState(false)
+
   const store=useLessonsStore()
 
   useEffect(()=>{ setLessons(store.read()) },[])
 
-  // Kiedy zmieni się poziom lub summary — przelicz wersję „Simplified”
   useEffect(()=>{
-    if(summary){
-      setSimple(simplifyForLevel(summary, readingLevel))
-    }
+    if(summary) setSimple(simplifyForLevel(summary, readingLevel))
   },[summary, readingLevel])
+
+  useEffect(() => {
+    const handleBeforePrint = () => {
+      if (summary) setSimple(simplifyForLevel(summary, readingLevel))
+    }
+    window.addEventListener('beforeprint', handleBeforePrint)
+    return () => window.removeEventListener('beforeprint', handleBeforePrint)
+  }, [summary, readingLevel])
+
+  useEffect(() => { ttsCtrl?.cancel?.(); setSpeaking(false) }, [simple])
 
   const clearCurrent=(keepInputs=false)=>{
     if(!keepInputs){ setUrl(''); setPasted('') }
     setSummary(''); setSimple(''); setCards([]); setQuiz([]); setAnswers({}); setError('')
+    ttsCtrl?.cancel?.(); setSpeaking(false)
   }
   const clearAllSaved=()=>{ store.clear(); setLessons([]) }
 
@@ -163,7 +187,7 @@ export default function App(){
     const kws=topKeywordsSimple(text,8)
     const fc=makeFlashcards(text,kws,6)
     const qz=makeQuiz(text,kws,5)
-    setSummary(sum)               // simple wyliczy się z useEffect
+    setSummary(sum)
     setCards(fc); setQuiz(qz)
     setLoading(false)
   }
@@ -180,6 +204,7 @@ export default function App(){
     const l=store.read().find(x=>x.id===id); if(!l) return
     setUrl(l.url||''); setPasted(l.sourceText||''); setSummary(l.summary||''); setReadingLevel(l.readingLevel||'B2')
     setSimple(l.simple||''); setCards(l.cards||[]); setQuiz(l.quiz||[]); setAnswers({}); setError('')
+    ttsCtrl?.cancel?.(); setSpeaking(false)
     window.scrollTo({ top:0, behavior:'smooth' })
   }
   const deleteLesson=id=>{ store.remove(id); setLessons(store.read()) }
@@ -224,7 +249,6 @@ export default function App(){
         <h1 className="text-3xl font-bold mb-2 break-words">TinyTeacher</h1>
         <p className="mb-6 text-sm opacity-80 break-words">Offline-first lessons: summary, simplified (A2↔B2), flashcards, quiz. Save or export to DOCX.</p>
 
-        {/* Panel ustawień dostępności */}
         <div className="mb-4 flex flex-wrap items-center gap-3" role="group" aria-label="Accessibility controls">
           <div className="flex items-center gap-2">
             <span className="text-sm">Reading level:</span>
@@ -241,6 +265,25 @@ export default function App(){
               >B2</button>
             </div>
           </div>
+
+          {isTtsSupported() && (
+            <div className="flex items-center gap-2" role="group" aria-label="Text-to-speech">
+              <button
+                className="px-3 h-11 rounded-xl bg-gray-200"
+                onClick={()=>{
+                  const c = speakText((simple || summary), 'pl', { rate: 1 }, ev => { if (ev.type==='end') setSpeaking(false) })
+                  setTtsCtrl(c); setSpeaking(true)
+                }}
+                aria-pressed={speaking}
+              >
+                {speaking ? 'Restart' : 'Play'}
+              </button>
+              <button className="px-3 h-11 rounded-xl bg-gray-200" onClick={()=>ttsCtrl?.pause?.()}>Pause</button>
+              <button className="px-3 h-11 rounded-xl bg-gray-200" onClick={()=>ttsCtrl?.resume?.()}>Resume</button>
+              <button className="px-3 h-11 rounded-xl bg-gray-200" onClick={()=>{ ttsCtrl?.cancel?.(); setSpeaking(false) }}>Stop</button>
+            </div>
+          )}
+
           <label className="inline-flex items-center gap-2">
             <input type="checkbox" className="h-5 w-5" checked={dyslexia} onChange={e=>setDyslexia(e.target.checked)} aria-label="Enable dyslexia-friendly mode" />
             <span className="text-sm">Dyslexia-friendly</span>
@@ -349,7 +392,6 @@ export default function App(){
         </div>
       </div>
 
-      {/* Print-only layout (zostawiamy jako szybki podgląd, główny eksport to DOCX) */}
       <div className="only-print p-8">
         <div className="max-w-3xl mx-auto">
           <h1 className="text-3xl font-bold mb-4 break-words">TinyTeacher — Lesson</h1>
