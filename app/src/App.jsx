@@ -78,17 +78,20 @@ function makeQuiz(text, keywords, n = 5) {
   return qs
 }
 
+CORS_PROXY = "https://tinyteacher-cors.lotopo5924.workers.dev/?u="
+
 async function fetchHtml(url) {
   try {
     const res = await fetch(url, { mode: 'cors' })
-    if (!res.ok) return null
-    const contentType = res.headers.get('content-type') || ''
-    if (!contentType.includes('text/html')) return null
-    const html = await res.text()
-    return html
-  } catch {
-    return null
-  }
+    if (res.ok && (res.headers.get('content-type') || '').includes('text/html')) {
+      return await res.text()
+    }
+  } catch {}
+  try {
+    const res = await fetch(CORS_PROXY + encodeURIComponent(url))
+    if (res.ok) return await res.text()
+  } catch {}
+  return null
 }
 
 function extractTextFromHtml(html) {
