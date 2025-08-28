@@ -1,5 +1,21 @@
 @import "tailwindcss";
 
+.dyslexia {
+  background-color: #ffffff !important;
+  color: #111111 !important;
+}
+.dyslexia p, .dyslexia li {
+  line-height: 1.8 !important;
+  letter-spacing: 0.03em !important;
+  word-spacing: 0.06em !important;
+}
+
+:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
+  border-radius: 0.75rem;
+}
+
 @media print {
   .print\:hidden { display: none !important; }
   .only-print { display: block !important; }
