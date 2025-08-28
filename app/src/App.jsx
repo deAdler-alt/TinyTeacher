@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType } from 'docx'
+import { motion } from 'framer-motion'
+import {
+  BookOpen, Sparkles, Save, Download, Eraser, Trash2,
+  Volume2, Pause, PlayCircle, Square as Stop, Settings2, Type, Link2, Loader2
+} from 'lucide-react'
 
 const CORS_PROXY = "https://tinyteacher-cors.lotopo5924.workers.dev/?u="
 
@@ -128,11 +133,7 @@ function speakText(text, lang = 'pl', opts = {}, onEvent){
   u.onend   = (e)=>onEvent?.({type:'end',   e})
   synth.cancel()
   synth.speak(u)
-  return {
-    pause: ()=>synth.pause(),
-    resume: ()=>synth.resume(),
-    cancel: ()=>synth.cancel()
-  }
+  return { pause: ()=>synth.pause(), resume: ()=>synth.resume(), cancel: ()=>synth.cancel() }
 }
 
 export default function App(){
@@ -162,9 +163,7 @@ export default function App(){
   },[summary, readingLevel])
 
   useEffect(() => {
-    const handleBeforePrint = () => {
-      if (summary) setSimple(simplifyForLevel(summary, readingLevel))
-    }
+    const handleBeforePrint = () => { if (summary) setSimple(simplifyForLevel(summary, readingLevel)) }
     window.addEventListener('beforeprint', handleBeforePrint)
     return () => window.removeEventListener('beforeprint', handleBeforePrint)
   }, [summary, readingLevel])
@@ -187,8 +186,7 @@ export default function App(){
     const kws=topKeywordsSimple(text,8)
     const fc=makeFlashcards(text,kws,6)
     const qz=makeQuiz(text,kws,5)
-    setSummary(sum)
-    setCards(fc); setQuiz(qz)
+    setSummary(sum); setCards(fc); setQuiz(qz)
     setLoading(false)
   }
 
@@ -243,172 +241,243 @@ export default function App(){
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove()
   }
 
-  return (
-    <div className={`min-h-screen ${dyslexia ? 'dyslexia' : ''} bg-gray-50 text-gray-900`}>
-      <div className="max-w-3xl mx-auto p-6 print:hidden">
-        <h1 className="text-3xl font-bold mb-2 break-words">TinyTeacher</h1>
-        <p className="mb-6 text-sm opacity-80 break-words">Offline-first lessons: summary, simplified (A2↔B2), flashcards, quiz. Save or export to DOCX.</p>
+  const glossyCard = "border border-white/40 bg-white/60 backdrop-blur-xl shadow-[0_10px_40px_-10px_rgba(16,24,40,0.15)] rounded-2xl"
 
-        <div className="mb-4 flex flex-wrap items-center gap-3" role="group" aria-label="Accessibility controls">
-          <div className="flex items-center gap-2">
-            <span className="text-sm">Reading level:</span>
-            <div className="inline-flex rounded-xl overflow-hidden border" role="tablist" aria-label="Reading level">
-              <button
-                role="tab" aria-selected={readingLevel==='A2'}
-                onClick={()=>setReadingLevel('A2')}
-                className={`px-3 h-11 ${readingLevel==='A2'?'bg-blue-600 text-white':'bg-white'}`}
-              >A2</button>
-              <button
-                role="tab" aria-selected={readingLevel==='B2'}
-                onClick={()=>setReadingLevel('B2')}
-                className={`px-3 h-11 ${readingLevel==='B2'?'bg-blue-600 text-white':'bg-white'}`}
-              >B2</button>
+  return (
+    <div className={`min-h-screen ${dyslexia ? 'dyslexia' : ''} text-gray-900`}>
+      <div className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-gradient-to-br from-blue-500/30 via-indigo-400/20 to-fuchsia-400/20 blur-3xl" />
+        <div className="absolute -bottom-32 -right-32 h-[28rem] w-[28rem] rounded-full bg-gradient-to-tr from-emerald-400/20 via-cyan-300/20 to-blue-400/20 blur-3xl" />
+        <div className="absolute inset-0 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:18px_18px] opacity-[0.15]" />
+      </div>
+
+      <header className="sticky top-0 z-10 backdrop-blur-md bg-white/60 border-b border-white/40">
+        <div className="max-w-5xl mx-auto px-5 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="font-extrabold text-xl gradient-text leading-none">TinyTeacher</div>
+              <div className="text-xs opacity-70 -mt-0.5">Turn any content into a 10-minute lesson</div>
             </div>
           </div>
-
-          {isTtsSupported() && (
-            <div className="flex items-center gap-2" role="group" aria-label="Text-to-speech">
-              <button
-                className="px-3 h-11 rounded-xl bg-gray-200"
-                onClick={()=>{
-                  const c = speakText((simple || summary), 'pl', { rate: 1 }, ev => { if (ev.type==='end') setSpeaking(false) })
-                  setTtsCtrl(c); setSpeaking(true)
-                }}
-                aria-pressed={speaking}
-              >
-                {speaking ? 'Restart' : 'Play'}
-              </button>
-              <button className="px-3 h-11 rounded-xl bg-gray-200" onClick={()=>ttsCtrl?.pause?.()}>Pause</button>
-              <button className="px-3 h-11 rounded-xl bg-gray-200" onClick={()=>ttsCtrl?.resume?.()}>Resume</button>
-              <button className="px-3 h-11 rounded-xl bg-gray-200" onClick={()=>{ ttsCtrl?.cancel?.(); setSpeaking(false) }}>Stop</button>
-            </div>
-          )}
-
-          <label className="inline-flex items-center gap-2">
-            <input type="checkbox" className="h-5 w-5" checked={dyslexia} onChange={e=>setDyslexia(e.target.checked)} aria-label="Enable dyslexia-friendly mode" />
-            <span className="text-sm">Dyslexia-friendly</span>
-          </label>
+          <div className="hidden sm:flex items-center gap-2 text-xs">
+            <Settings2 className="h-4 w-4 opacity-70" />
+            <span className="opacity-70">PWA • Offline • DOCX</span>
+          </div>
         </div>
+      </header>
 
-        <div className="space-y-3 mb-6">
-          <label className="sr-only" htmlFor="urlInput">Paste a URL (optional)</label>
-          <input
-            id="urlInput" value={url} onChange={e=>setUrl(e.target.value)}
-            placeholder="Paste a URL (optional)"
-            className="w-full border rounded-xl p-3 h-11 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 break-words"
-          />
-          <label className="sr-only" htmlFor="textInput">Paste article/transcript text</label>
-          <textarea
-            id="textInput" value={pasted} onChange={e=>setPasted(e.target.value)}
-            placeholder="Or paste article/transcript text here"
-            rows={8}
-            className="w-full border rounded-xl p-3 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
-          />
-          <div className="flex flex-wrap items-center gap-3">
-            <button onClick={createLesson} disabled={loading} className="px-4 h-11 rounded-xl bg-blue-600 text-white disabled:opacity-50 shadow-sm" aria-busy={loading}>
+      <main className="max-w-5xl mx-auto px-5 py-8">
+        <motion.section
+          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}
+          className={`${glossyCard} p-5 mb-6`}
+        >
+          <div className="flex flex-wrap items-center gap-3" role="group" aria-label="Accessibility and level controls">
+            <div className="flex items-center gap-2">
+              <Type className="h-5 w-5 opacity-70" />
+              <span className="text-sm">Reading level</span>
+              <div className="inline-flex rounded-xl overflow-hidden border border-black/10">
+                <button
+                  role="tab" aria-selected={readingLevel==='A2'}
+                  onClick={()=>setReadingLevel('A2')}
+                  className={`px-3 h-10 ${readingLevel==='A2'?'bg-blue-600 text-white':'bg-white hover:bg-black/5'}`}
+                >A2</button>
+                <button
+                  role="tab" aria-selected={readingLevel==='B2'}
+                  onClick={()=>setReadingLevel('B2')}
+                  className={`px-3 h-10 ${readingLevel==='B2'?'bg-blue-600 text-white':'bg-white hover:bg-black/5'}`}
+                >B2</button>
+              </div>
+            </div>
+
+            {isTtsSupported() && (
+              <div className="flex items-center gap-2" role="group" aria-label="Text to speech">
+                <Volume2 className="h-5 w-5 opacity-70" />
+                <button
+                  onClick={()=>{
+                    const c = speakText((simple || summary), 'pl', { rate: 1 }, ev => { if (ev.type==='end') setSpeaking(false) })
+                    setTtsCtrl(c); setSpeaking(true)
+                  }}
+                  className="px-3 h-10 rounded-xl bg-white hover:bg-black/5 border border-black/10 flex items-center gap-1"
+                  aria-pressed={speaking}
+                >
+                  <PlayCircle className="h-5 w-5" /> {speaking ? 'Restart' : 'Play'}
+                </button>
+                <button onClick={()=>ttsCtrl?.pause?.()} className="px-3 h-10 rounded-xl bg-white hover:bg-black/5 border border-black/10 flex items-center gap-1">
+                  <Pause className="h-5 w-5" /> Pause
+                </button>
+                <button onClick={()=>ttsCtrl?.resume?.()} className="px-3 h-10 rounded-xl bg-white hover:bg-black/5 border border-black/10 flex items-center gap-1">
+                  <PlayCircle className="h-5 w-5" /> Resume
+                </button>
+                <button onClick={()=>{ ttsCtrl?.cancel?.(); setSpeaking(false) }} className="px-3 h-10 rounded-xl bg-white hover:bg-black/5 border border-black/10 flex items-center gap-1">
+                  <Stop className="h-5 w-5" /> Stop
+                </button>
+              </div>
+            )}
+
+            <label className="inline-flex items-center gap-2 ml-auto">
+              <input type="checkbox" className="h-5 w-5" checked={dyslexia} onChange={e=>setDyslexia(e.target.checked)} aria-label="Enable dyslexia-friendly mode" />
+              <span className="text-sm">Dyslexia-friendly</span>
+            </label>
+          </div>
+        </motion.section>
+
+        <motion.section
+          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.05 }}
+          className={`${glossyCard} p-5 mb-6`}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label className="block text-sm font-medium opacity-80">Source URL</label>
+            <div className="hidden md:block text-right opacity-60 text-xs">Paste a public link (CORS-friendly)</div>
+            <div className="md:col-span-2 flex items-center gap-2">
+              <div className="relative flex-1">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 opacity-60"><Link2 className="h-4 w-4" /></span>
+                <input
+                  value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://example.com/article"
+                  className="w-full pl-9 pr-3 h-11 rounded-xl bg-white border border-black/10 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                />
+              </div>
+            </div>
+
+            <label className="block text-sm font-medium opacity-80 md:col-span-2">Or paste article/transcript text</label>
+            <textarea
+              value={pasted} onChange={e=>setPasted(e.target.value)} rows={7}
+              placeholder="Paste text here…"
+              className="md:col-span-2 w-full rounded-xl p-3 bg-white border border-black/10 focus:outline-none focus:ring-2 focus:ring-blue-600 resize-y"
+            />
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              onClick={createLesson} disabled={loading}
+              className="px-4 h-11 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg disabled:opacity-60 flex items-center gap-2"
+              aria-busy={loading}
+            >
+              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
               {loading ? 'Creating…' : 'Create Lesson'}
             </button>
-            <button onClick={()=>{ if(summary){ saveLesson() } else { setError('Create a lesson first.') }}} className="px-4 h-11 rounded-xl bg-gray-900 text-white shadow-sm">Save</button>
-            <button onClick={exportDocx} className="px-4 h-11 rounded-xl bg-emerald-600 text-white shadow-sm">Download .docx</button>
-            <button onClick={()=>clearCurrent()} className="px-4 h-11 rounded-xl bg-orange-500 text-white shadow-sm">Clear current</button>
-            <button onClick={clearAllSaved} className="px-4 h-11 rounded-xl bg-red-600 text-white shadow-sm">Clear saved</button>
-            <div aria-live="polite" className="min-h-[1.5rem] text-red-600 text-sm break-words">{error}</div>
+            <button onClick={()=>{ if(summary){ saveLesson() } else { setError('Create a lesson first.') }}} className="px-4 h-11 rounded-xl bg-white border border-black/10 hover:bg-black/5 flex items-center gap-2">
+              <Save className="h-5 w-5" /> Save
+            </button>
+            <button onClick={exportDocx} className="px-4 h-11 rounded-xl bg-emerald-600 text-white hover:brightness-110 shadow flex items-center gap-2">
+              <Download className="h-5 w-5" /> Download .docx
+            </button>
+            <button onClick={()=>{ setUrl(''); setPasted('') }} className="px-4 h-11 rounded-xl bg-white border border-black/10 hover:bg-black/5 flex items-center gap-2">
+              <Eraser className="h-5 w-5" /> Clear inputs
+            </button>
+            <div aria-live="polite" className="text-red-600 text-sm">{error}</div>
           </div>
-        </div>
+        </motion.section>
 
         {summary && (
-          <div className="space-y-8">
-            <section className="border rounded-2xl p-4 bg-white shadow-sm" aria-labelledby="sec-summary">
-              <h2 id="sec-summary" className="text-xl font-semibold mb-2">Summary</h2>
-              <p className="leading-7 break-words">{summary}</p>
-            </section>
-
-            <section className="border rounded-2xl p-4 bg-white shadow-sm" aria-labelledby="sec-simple">
-              <div className="flex items-baseline justify-between">
-                <h2 id="sec-simple" className="text-xl font-semibold mb-2">Simplified</h2>
-                <span className="text-xs opacity-70">Level: {readingLevel}</span>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <motion.section initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{duration:0.35,delay:0.1}} className={`${glossyCard} p-5`}>
+              <div className="flex items-center gap-2 mb-2">
+                <BookOpen className="h-5 w-5 text-blue-700" />
+                <h2 className="text-lg font-semibold">Summary</h2>
               </div>
-              <p className="leading-7 break-words">{simple}</p>
-            </section>
+              <p className="leading-7">{summary}</p>
+            </motion.section>
 
-            <section className="border rounded-2xl p-4 bg-white shadow-sm" aria-labelledby="sec-cards">
-              <h2 id="sec-cards" className="text-xl font-semibold mb-3">Flashcards</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <motion.section initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{duration:0.35,delay:0.12}} className={`${glossyCard} p-5`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Type className="h-5 w-5 text-emerald-700" />
+                  <h2 className="text-lg font-semibold">Simplified</h2>
+                </div>
+                <span className="text-xs px-2 py-1 rounded-full bg-black/5 border border-black/10">Level: {readingLevel}</span>
+              </div>
+              <p className="leading-7">{simple}</p>
+            </motion.section>
+
+            <motion.section initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{duration:0.35,delay:0.14}} className={`${glossyCard} p-5`}>
+              <h2 className="text-lg font-semibold mb-3">Flashcards</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {cards.map((c,i)=>(
-                  <div key={i} className="border rounded-xl p-3 bg-gray-50 break-words">
-                    <div className="font-medium mb-1">{c.term}</div>
+                  <div key={i} className="rounded-xl p-3 border border-black/10 bg-white/70">
+                    <div className="font-medium">{c.term}</div>
                     <div className="text-sm opacity-80">{c.definition}</div>
                   </div>
                 ))}
                 {!cards.length && <div className="text-sm opacity-70">No flashcards generated.</div>}
               </div>
-            </section>
+            </motion.section>
 
-            <section className="border rounded-2xl p-4 bg-white shadow-sm" aria-labelledby="sec-quiz">
-              <h2 id="sec-quiz" className="text-xl font-semibold mb-3">Quiz</h2>
+            <motion.section initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{duration:0.35,delay:0.16}} className={`${glossyCard} p-5`}>
+              <h2 className="text-lg font-semibold mb-3">Quiz</h2>
               <ol className="space-y-4 list-decimal ml-6">
                 {quiz.map((q,i)=>{
                   const picked=answers[i]
                   return (
-                    <li key={i} className="break-words">
+                    <li key={i}>
                       <div className="mb-2">{q.question}</div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {q.options.map((o,j)=>{
                           const isPicked=picked===o
                           const isCorrect=o===q.answer
-                          const cls=isPicked ? (isCorrect?'bg-green-600 text-white':'bg-red-600 text-white') : 'bg-gray-100 text-gray-900'
+                          const base="text-left rounded-xl p-2 border"
+                          const cls=isPicked ? (isCorrect?'bg-emerald-600 text-white border-emerald-600':'bg-red-600 text-white border-red-600') : 'bg-white/70 border-black/10 hover:bg-black/5'
                           return (
-                            <button key={j} onClick={()=>choose(i,o)} className={`text-left border rounded-xl p-2 break-words ${cls}`}>{o}</button>
+                            <button key={j} onClick={()=>choose(i,o)} className={`${base} ${cls}`}>{o}</button>
                           )
                         })}
                       </div>
-                      {picked && (<div className={`mt-2 text-sm ${picked===q.answer?'text-green-700':'text-red-700'}`}>{picked===q.answer?'Correct':`Answer: ${q.answer}`}</div>)}
+                      {picked && (<div className={`mt-2 text-sm ${picked===q.answer?'text-emerald-700':'text-red-700'}`}>{picked===q.answer?'Correct':`Answer: ${q.answer}`}</div>)}
                     </li>
                   )
                 })}
                 {!quiz.length && <div className="text-sm opacity-70">No quiz questions generated.</div>}
               </ol>
-            </section>
+            </motion.section>
           </div>
         )}
 
-        <div className="mt-10">
-          <h2 className="text-xl font-semibold mb-3">My lessons</h2>
-          <div className="space-y-2">
+        <motion.section initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{duration:0.35,delay:0.18}} className={`${glossyCard} p-5 mt-6`}>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">My lessons</h2>
+            <button onClick={()=>{ store.clear(); setLessons([]) }} className="px-3 h-10 rounded-xl bg-white border border-black/10 hover:bg-black/5 flex items-center gap-2">
+              <Trash2 className="h-5 w-5" /> Clear saved
+            </button>
+          </div>
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {lessons.map(l=>(
-              <div key={l.id} className="flex items-center justify-between border rounded-xl p-3 bg-white shadow-sm">
-                <div className="min-w-0">
-                  <div className="font-medium truncate">{l.title}</div>
-                  <div className="text-xs opacity-70">{new Date(l.createdAt).toLocaleString()}</div>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={()=>loadLesson(l.id)} className="px-3 h-10 rounded-lg bg-gray-200">Load</button>
-                  <button onClick={()=>deleteLesson(l.id)} className="px-3 h-10 rounded-lg bg-red-600 text-white">Delete</button>
+              <div key={l.id} className="rounded-xl p-3 border border-black/10 bg-white/70">
+                <div className="font-medium line-clamp-2">{l.title}</div>
+                <div className="text-xs opacity-70 mt-1">{new Date(l.createdAt).toLocaleString()}</div>
+                <div className="mt-2 flex gap-2">
+                  <button onClick={()=>loadLesson(l.id)} className="px-3 h-9 rounded-lg bg-white border border-black/10 hover:bg-black/5">Load</button>
+                  <button onClick={()=>deleteLesson(l.id)} className="px-3 h-9 rounded-lg bg-red-600 text-white">Delete</button>
                 </div>
               </div>
             ))}
             {!lessons.length && <div className="text-sm opacity-70">No saved lessons yet.</div>}
           </div>
-        </div>
-      </div>
+        </motion.section>
+      </main>
+
+      <footer className="max-w-5xl mx-auto px-5 py-8 text-xs opacity-70">
+        <div>© {new Date().getFullYear()} TinyTeacher • Built with React, Vite & Tailwind</div>
+      </footer>
 
       <div className="only-print p-8">
         <div className="max-w-3xl mx-auto">
-          <h1 className="text-3xl font-bold mb-4 break-words">TinyTeacher — Lesson</h1>
+          <h1 className="text-3xl font-bold mb-4">TinyTeacher — Lesson</h1>
           {summary ? (
             <>
               <h2 className="text-xl font-semibold mb-2">Summary</h2>
-              <p className="mb-4 break-words">{summary}</p>
+              <p className="mb-4">{summary}</p>
               <h2 className="text-xl font-semibold mb-2">Simplified ({readingLevel})</h2>
-              <p className="mb-4 break-words">{simple}</p>
+              <p className="mb-4">{simple}</p>
               <h2 className="text-xl font-semibold mb-2">Flashcards</h2>
               <ul className="mb-4 list-disc ml-6">
-                {cards.map((c,i)=>(<li key={i} className="break-words"><b>{c.term}:</b> {c.definition}</li>))}
+                {cards.map((c,i)=>(<li key={i}><b>{c.term}:</b> {c.definition}</li>))}
               </ul>
               <h2 className="text-xl font-semibold mb-2">Quiz</h2>
               <ol className="list-decimal ml-6 space-y-4">
                 {quiz.map((q,i)=>(
-                  <li key={i} className="break-words">
+                  <li key={i}>
                     <div className="mb-1">{q.question.replace('_____', '__________')}</div>
                     <div className="text-sm opacity-60">Options: {q.options.join(', ')}</div>
                   </li>
