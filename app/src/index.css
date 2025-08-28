@@ -16,10 +16,23 @@
   border-radius: 0.75rem;
 }
 
+.gradient-text {
+  background: linear-gradient(90deg, #2563eb 0%, #7c3aed 50%, #06b6d4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.dyslexia { background-color: #ffffff !important; color: #111111 !important; }
+.dyslexia p, .dyslexia li { line-height: 1.8 !important; letter-spacing: 0.03em !important; word-spacing: 0.06em !important; }
+:focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; border-radius: 0.75rem; }
+
 @media print {
   .print\:hidden { display: none !important; }
   .only-print { display: block !important; }
 }
-@media screen {
-  .only-print { display: none !important; }
+@media screen { .only-print { display: none !important; } }
+
+.line-clamp-2 {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
