@@ -1,1 +1,9 @@
 @import "tailwindcss";
+
+@media print {
+  .print\:hidden { display: none !important; }
+  .only-print { display: block !important; }
+}
+@media screen {
+  .only-print { display: none !important; }
+}

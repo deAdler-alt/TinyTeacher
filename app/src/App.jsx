@@ -31,7 +31,8 @@ function useLessonsStore(){
   const write=(arr)=>{try{localStorage.setItem(key,JSON.stringify(arr))}catch{}}
   const add=(lesson)=>{const arr=read();arr.unshift(lesson);write(arr)}
   const remove=(id)=>{const arr=read().filter(x=>x.id!==id);write(arr)}
-  return { read, add, remove }
+  const clear=()=>{try{localStorage.removeItem(key)}catch{}}
+  return { read, add, remove, clear }
 }
 
 export default function App(){
@@ -46,6 +47,7 @@ export default function App(){
   const [answers,setAnswers]=useState({})
   const [lessons,setLessons]=useState([])
   const [shareLink,setShareLink]=useState('')
+  const [copied,setCopied]=useState(false)
   const qrRef=useRef(null)
   const store=useLessonsStore()
   const baseURL=`${window.location.origin}${import.meta.env.BASE_URL}`
@@ -56,10 +58,7 @@ export default function App(){
     if(h.startsWith('#lesson=')){
       const enc=h.slice('#lesson='.length)
       const json=decompressFromEncodedURIComponent(enc)
-      try{
-        const obj=JSON.parse(json)
-        hydrate(obj)
-      }catch{}
+      try{ hydrate(JSON.parse(json)) }catch{}
     }
   },[])
 
@@ -72,11 +71,14 @@ export default function App(){
     setQuiz(obj.quiz||[])
     setAnswers({})
     setError('')
+    setShareLink('')
+    setCopied(false)
+    if(qrRef.current){ const ctx=qrRef.current.getContext('2d'); if(ctx){ ctx.clearRect(0,0,qrRef.current.width,qrRef.current.height) } }
   }
 
   const createLesson=async ()=>{
     setError('');setLoading(true)
-    setSummary('');setSimple('');setCards([]);setQuiz([]);setAnswers({})
+    clearCurrent(true)
     let text=normalize(pasted)
     if(!text && url){ const html=await fetchHtml(url); if(html) text=extractTextFromHtml(html) }
     if(!text){ setLoading(false); setError('Provide a URL that allows CORS or paste the text/transcript below.'); return }
@@ -110,7 +112,21 @@ export default function App(){
     setLessons(store.read())
   }
 
-  const printLesson=()=>{ if(!summary){ setError('Create a lesson first.'); return } window.print() }
+  const clearCurrent=(keepInputs=false)=>{
+    if(!keepInputs){ setUrl(''); setPasted('') }
+    setSummary(''); setSimple(''); setCards([]); setQuiz([]); setAnswers({}); setError(''); setShareLink(''); setCopied(false)
+    if(qrRef.current){ const ctx=qrRef.current.getContext('2d'); if(ctx){ ctx.clearRect(0,0,qrRef.current.width,qrRef.current.height) } }
+  }
+
+  const clearAllSaved=()=>{
+    store.clear()
+    setLessons([])
+  }
+
+  const printLesson=()=>{
+    if(!summary){ setError('Create a lesson first.'); return }
+    window.print()
+  }
 
   const makeShare=async ()=>{
     if(!summary){ setError('Create a lesson first.'); return }
@@ -118,25 +134,33 @@ export default function App(){
     const enc=compressToEncodedURIComponent(JSON.stringify(payload))
     const link=`${baseURL}#lesson=${enc}`
     setShareLink(link)
+    setCopied(false)
     if(qrRef.current){
       try{ await QRCode.toCanvas(qrRef.current, link, { width: 240, margin: 1 }) }catch{}
     }
   }
 
+  const copyShare=async ()=>{
+    if(!shareLink) return
+    try{ await navigator.clipboard.writeText(shareLink); setCopied(true); setTimeout(()=>setCopied(false),1500) }catch{}
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
-      <div className="max-w-3xl mx-auto p-6">
+      <div className="max-w-3xl mx-auto p-6 print:hidden">
         <h1 className="text-3xl font-bold mb-2 break-words">TinyTeacher</h1>
-        <p className="mb-6 text-sm opacity-80 break-words">Offline-first lessons: summary, simplified, flashcards, quiz. Save locally, print, share via QR.</p>
+        <p className="mb-6 text-sm opacity-80 break-words">Offline-first lessons: summary, simplified, flashcards, quiz. Save, print, and share via QR.</p>
 
         <div className="space-y-3 mb-6">
           <input value={url} onChange={e=>setUrl(e.target.value)} placeholder="Paste a URL (optional)" className="w-full border rounded-xl p-3 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 break-words" />
           <textarea value={pasted} onChange={e=>setPasted(e.target.value)} placeholder="Or paste article/transcript text here" rows={8} className="w-full border rounded-xl p-3 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y" />
           <div className="flex flex-wrap items-center gap-3">
             <button onClick={createLesson} disabled={loading} className="px-4 py-2 rounded-xl bg-blue-600 text-white disabled:opacity-50 shadow-sm">{loading ? 'Creating…' : 'Create Lesson'}</button>
-            <button onClick={saveLesson} className="px-4 py-2 rounded-xl bg-gray-900 text-white shadow-sm">Save lesson</button>
+            <button onClick={saveLesson} className="px-4 py-2 rounded-xl bg-gray-900 text-white shadow-sm">Save</button>
             <button onClick={printLesson} className="px-4 py-2 rounded-xl bg-gray-200">Print</button>
             <button onClick={makeShare} className="px-4 py-2 rounded-xl bg-emerald-600 text-white shadow-sm">Share (QR)</button>
+            <button onClick={()=>clearCurrent()} className="px-4 py-2 rounded-xl bg-orange-500 text-white shadow-sm">Clear current</button>
+            <button onClick={clearAllSaved} className="px-4 py-2 rounded-xl bg-red-600 text-white shadow-sm">Clear saved</button>
             {error && <div className="text-red-600 text-sm break-words">{error}</div>}
           </div>
         </div>
@@ -192,15 +216,19 @@ export default function App(){
               </ol>
             </section>
 
-            {shareLink && (
+            {(
               <section className="border rounded-2xl p-4 bg-white shadow-sm">
                 <h2 className="text-xl font-semibold mb-3">Share</h2>
-                <p className="text-sm opacity-80 mb-2 break-words">Scan the QR or copy the link.</p>
-                <canvas ref={qrRef} className="mb-3 mx-auto"></canvas>
-                <input value={shareLink} readOnly className="w-full border rounded-xl p-2 bg-gray-50 break-words" />
-                {window.location.hostname.includes('localhost') && (
-                  <p className="text-xs opacity-70 mt-2">Tip: QR will work best on your deployed GitHub Pages URL.</p>
-                )}
+                {!shareLink && <p className="text-sm opacity-80 mb-3">Click <b>Share (QR)</b> to generate a link that encodes this lesson inside the URL. Scan the QR on another device to open it.</p>}
+                <div className="flex flex-col items-center gap-3">
+                  <canvas ref={qrRef} className={`${shareLink ? '' : 'opacity-40'}`}></canvas>
+                  <input value={shareLink || ''} readOnly placeholder="Generated link will appear here" className="w-full border rounded-xl p-2 bg-gray-50 break-words" />
+                  <div className="flex gap-2">
+                    <button onClick={copyShare} disabled={!shareLink} className="px-3 py-1 rounded-lg bg-gray-900 text-white">{copied ? 'Copied' : 'Copy link'}</button>
+                    <a href={shareLink || '#'} target="_blank" rel="noreferrer" className={`px-3 py-1 rounded-lg ${shareLink ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500 pointer-events-none'}`}>Open link</a>
+                  </div>
+                  <p className="text-xs opacity-70 text-center">How it works: the lesson data is compressed into the <code>#lesson=…</code> part of the URL. No server is used.</p>
+                </div>
               </section>
             )}
           </div>
@@ -223,6 +251,35 @@ export default function App(){
             ))}
             {!lessons.length && <div className="text-sm opacity-70">No saved lessons yet.</div>}
           </div>
+        </div>
+      </div>
+
+      <div className="only-print p-8">
+        <div className="max-w-3xl mx-auto">
+          <h1 className="text-3xl font-bold mb-4 break-words">TinyTeacher — Lesson</h1>
+          {summary ? (
+            <>
+              <h2 className="text-xl font-semibold mb-2">Summary</h2>
+              <p className="mb-4 break-words">{summary}</p>
+              <h2 className="text-xl font-semibold mb-2">Simplified</h2>
+              <p className="mb-4 break-words">{simple}</p>
+              <h2 className="text-xl font-semibold mb-2">Flashcards</h2>
+              <ul className="mb-4 list-disc ml-6">
+                {cards.map((c,i)=>(<li key={i} className="break-words"><b>{c.term}:</b> {c.definition}</li>))}
+              </ul>
+              <h2 className="text-xl font-semibold mb-2">Quiz</h2>
+              <ol className="list-decimal ml-6 space-y-4">
+                {quiz.map((q,i)=>(
+                  <li key={i} className="break-words">
+                    <div className="mb-1">{q.question.replace('_____', '__________')}</div>
+                    <div className="text-sm opacity-60">Options: {q.options.join(', ')}</div>
+                  </li>
+                ))}
+              </ol>
+            </>
+          ) : (
+            <p>No lesson to print.</p>
+          )}
         </div>
       </div>
     </div>
