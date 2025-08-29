@@ -1,4 +1,3 @@
-```markdown
 # TinyTeacher
 **Turn any article or transcript into a 10-minute lesson.**  
 Summary → Simplified (A2↔B2) → Flashcards → Quiz → **DOCX export**. Works offline, PWA-ready. TTS and Dyslexia-friendly built in.
