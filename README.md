@@ -33,11 +33,11 @@ Under-resourced schools and NGOs lack tools that are simple, private, and free. 
 ```
 
 Browser (PWA)
-├── UI (React/Tailwind/framer-motion)
-├── Heuristics (summary/simplify/flashcards/quiz)
-├── TTS (Web Speech API)
-├── Local storage (browser)
-└── Export (docx)
+- UI (React/Tailwind/framer-motion)
+- Heuristics (summary/simplify/flashcards/quiz)
+- TTS (Web Speech API)
+- Local storage (browser)
+- Export (docx)
 
 ````
 
