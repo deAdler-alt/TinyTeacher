@@ -12,28 +12,14 @@ export default defineConfig(({ mode }) => ({
       manifest: {
         name: 'TinyTeacher',
         short_name: 'TinyTeacher',
-        start_url: '/tinyteacher/',
+        start_url: mode === 'development' ? '/' : '/tinyteacher/',
         display: 'standalone',
-        background_color: '#ffffff',
-        theme_color: '#2563eb',
+        background_color: '#0B1020',
+        theme_color: '#2563EB',
         icons: [
-          { src: 'pwa-192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' }
-        ]
-      },
-      workbox: {
-        navigateFallbackDenylist: [/^\/api\//],
-        runtimeCaching: [
-          {
-            urlPattern: ({ request }) => request.destination === 'document' || request.destination === 'script' || request.destination === 'style' || request.destination === 'image' || request.destination === 'font',
-            handler: 'StaleWhileRevalidate',
-            options: { cacheName: 'tt-static' }
-          },
-          {
-            urlPattern: ({ url }) => url.hostname.endsWith('workers.dev'),
-            handler: 'NetworkFirst',
-            options: { cacheName: 'tt-proxy' }
-          }
+          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'icons/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
         ]
       }
     })
