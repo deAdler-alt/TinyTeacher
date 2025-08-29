@@ -19,7 +19,6 @@ Under-resourced schools and NGOs lack tools that are simple, private, and free. 
 ## Live
 - Dev: `npm run dev` → open `http://localhost:5173`
 - PWA install: Chrome → menu → “Install TinyTeacher”
-> (Place demo URL here after deploy)
 
 ## Stack
 - **React 18 + Vite + Tailwind**
@@ -30,19 +29,17 @@ Under-resourced schools and NGOs lack tools that are simple, private, and free. 
 
 ## Architecture
 ```
-
 Browser (PWA)
 - UI (React/Tailwind/framer-motion)
 - Heuristics (summary/simplify/flashcards/quiz)
 - TTS (Web Speech API)
 - Local storage (browser)
 - Export (docx)
-
 ````
 
 ## Quickstart
 ```bash
-# Node 18+ recommended
+# Node 18+ (recommended)
 npm install
 npm run dev
 ````
